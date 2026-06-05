@@ -5,7 +5,6 @@ cli-source = "MorpheApp/morphe-cli"
 cli-version = "dev"
 
 [YouTube]
-apkmirror-dlurl = "https://apkmirror.com/apk/google-inc/youtube/"
 build-mode = "both"
 excluded-patches = "'Custom branding icon for YouTube' 'Custom branding name for YouTube' 'Custom header for YouTube'"
 patches-source = "anddea/revanced-patches"
