@@ -1,6 +1,6 @@
 {
-  "version": "v20.51.39 (patches dev.5.mpp)",
-  "versionCode": 2,
-  "zipUrl": "https://github.com/MootComb/YouTube-ReVanced-Extended/releases/download/2/youtube-revanced-module-v20.51.39-all.zip",
+  "version": "v20.51.39 (patches dev.6.mpp)",
+  "versionCode": 3,
+  "zipUrl": "https://github.com/MootComb/YouTube-ReVanced-Extended/releases/download/3/youtube-revanced-module-v20.51.39-all.zip",
   "changelog": "https://raw.githubusercontent.com/MootComb/YouTube-ReVanced-Extended/update/build.md"
 }
