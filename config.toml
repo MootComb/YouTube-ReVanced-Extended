@@ -5,7 +5,7 @@ cli-source = "MorpheApp/morphe-cli"
 cli-version = "latest"
 
 [YouTube]
-build-mode = "both"
+build-mode = "module"
 excluded-patches = "'Custom branding icon for YouTube' 'Custom branding name for YouTube' 'Custom header for YouTube'"
 patches-source = "anddea/revanced-patches"
 patches-version = "dev"
