@@ -1,0 +1,66 @@
+name: Sync with upstream (keep our files)
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/MootComb/YouTube-ReVanced-Extended.git
+          git fetch upstream
+      
+      - name: Merge upstream (keep our files on conflicts)
+        run: |
+          echo "Starting merge with upstream..."
+          
+          # Attempt to merge
+          if git merge --no-commit --no-ff upstream/main; then
+            echo "✅ Merge successful, no conflicts"
+            echo "MERGE_SUCCESS=true" >> $GITHUB_ENV
+          else
+            echo "⚠️ Conflicts detected! Keeping our files..."
+            
+            # Get list of conflicted files
+            CONFLICT_FILES=$(git diff --name-only --diff-filter=U)
+            
+            # For each conflicted file, take OUR version
+            for file in $CONFLICT_FILES; do
+              echo "  🛡️ Keeping our file: $file"
+              git checkout --ours "$file" 2>/dev/null || true
+              git add "$file"
+            done
+            
+            echo "✅ Conflicts resolved in favor of our files"
+            echo "MERGE_SUCCESS=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Commit and push changes
+        if: env.MERGE_SUCCESS == 'true'
+        run: |
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes to commit"
+          else
+            git commit -m "Sync: merged upstream changes (kept our files on conflicts) $(date -u '+%Y-%m-%d %H:%M:%S')"
+            git push origin HEAD
+            echo "✅ Changes pushed"
+          fi
