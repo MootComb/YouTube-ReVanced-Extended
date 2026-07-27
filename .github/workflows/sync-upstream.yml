@@ -1,4 +1,4 @@
-name: Sync with upstream (keep our files)
+name: Sync from MANCrimSon to MootComb (keep our files)
 
 on:
   schedule:
@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     
     steps:
       - name: Checkout repository
@@ -23,24 +24,31 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
       
-      - name: Add upstream remote
+      - name: Add MANCrimSon as upstream
         run: |
-          git remote add upstream https://github.com/MootComb/YouTube-ReVanced-Extended.git
+          git remote add upstream https://github.com/MANCrimSon/YouTube-ReVanced-Extended.git
           git fetch upstream
       
-      - name: Merge upstream (keep our files on conflicts)
+      - name: Merge from MANCrimSon (keep our files on conflicts)
         run: |
-          echo "Starting merge with upstream..."
+          echo "🔄 Syncing from MANCrimSon to MootComb..."
           
-          # Attempt to merge
+          # Try to merge
           if git merge --no-commit --no-ff upstream/main; then
             echo "✅ Merge successful, no conflicts"
-            echo "MERGE_SUCCESS=true" >> $GITHUB_ENV
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
           else
-            echo "⚠️ Conflicts detected! Keeping our files..."
+            echo "⚠️ Conflicts detected! Keeping OUR files (MootComb)..."
             
-            # Get list of conflicted files
+            # Get conflicted files
             CONFLICT_FILES=$(git diff --name-only --diff-filter=U)
+            
+            if [ -z "$CONFLICT_FILES" ]; then
+              echo "❌ No conflicted files found, but merge failed"
+              git merge --abort
+              echo "HAS_CHANGES=false" >> $GITHUB_ENV
+              exit 0
+            fi
             
             # For each conflicted file, take OUR version
             for file in $CONFLICT_FILES; do
@@ -50,17 +58,17 @@ jobs:
             done
             
             echo "✅ Conflicts resolved in favor of our files"
-            echo "MERGE_SUCCESS=true" >> $GITHUB_ENV
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
           fi
       
       - name: Commit and push changes
-        if: env.MERGE_SUCCESS == 'true'
+        if: env.HAS_CHANGES == 'true'
         run: |
           # Check if there are changes to commit
           if git diff --cached --quiet; then
             echo "ℹ️ No changes to commit"
           else
-            git commit -m "Sync: merged upstream changes (kept our files on conflicts) $(date -u '+%Y-%m-%d %H:%M:%S')"
-            git push origin HEAD
-            echo "✅ Changes pushed"
+            git commit -m "Sync: merged from MANCrimSon (kept our files) $(date -u '+%Y-%m-%d %H:%M:%S')"
+            git push origin main
+            echo "✅ Changes pushed to MootComb!"
           fi
