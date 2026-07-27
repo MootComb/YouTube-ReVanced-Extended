@@ -1,4 +1,4 @@
-name: Sync from MANCrimSon to MootComb (keep our files)
+name: Sync upstream
 
 on:
   schedule:
