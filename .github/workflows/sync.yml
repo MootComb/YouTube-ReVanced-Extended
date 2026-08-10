@@ -1,72 +1,107 @@
 name: Sync upstream
 
 on:
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-concurrency:
-  group: sync-upstream
-  cancel-in-progress: false
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    outputs:
+      pushed: ${{ steps.check-push.outputs.pushed }}
+    
     steps:
-      - name: Checkout current repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.SYNC_TOKEN }}
           fetch-depth: 0
-
-      - name: Clone upstream repository
-        run: |
-          rm -rf /tmp/upstream
-          git clone --depth=1 --branch main https://github.com/j-hc/revanced-magisk-module.git /tmp/upstream
-
-      - name: Sync all files except local overrides
-        run: |
-          rsync -a --delete \
-            --exclude='.git/' \
-            --exclude='README.md' \
-            --exclude='config.toml' \
-            --exclude='.github/workflows/sync.yml' \
-            /tmp/upstream/ ./
-
-      - name: Re-apply local build.yml patch
-        run: |
-          f=.github/workflows/build.yml
-          if grep -q 'Get add-on bundle' "$f"; then echo "already patched"; exit 0; fi
-          grep -q '      - name: Build modules/APKs' "$f" || { echo "::error::anchor step not found in $f"; exit 1; }
-          python3 - "$f" <<'PY'
-          import sys
-          path = sys.argv[1]
-          src = open(path).read()
-          anchor = "      - name: Build modules/APKs"
-          expr = "${" + "{ secrets.GITHUB_TOKEN }}"
-          block = (
-              "      - name: Get add-on bundle\n"
-              "        env:\n"
-              "          GH_TOKEN: " + expr + "\n"
-              "        run: gh release download -R sashade8-ship-it/morphe-patches-yavot -p '*.mpp' -O yavot.mpp --clobber\n"
-              "\n"
-          )
-          open(path, "w").write(src.replace(anchor, block + anchor, 1))
-          PY
-
-      - name: Commit and push if changed
-        env:
-          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          if [ -z "$(git status --porcelain)" ]; then
-            exit 0
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Add MANCrimSon as upstream
+        run: |
+          git remote add upstream https://github.com/MANCrimSon/YouTube-ReVanced-Extended.git
+          git fetch upstream
+      
+      - name: Merge from MANCrimSon (keep our files on conflicts)
+        id: merge
+        run: |
+          echo "🔄 Syncing from MANCrimSon to MootComb..."
+          
+          # Try to merge
+          if git merge --no-commit --no-ff upstream/main; then
+            echo "✅ Merge successful, no conflicts"
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          else
+            echo "⚠️ Conflicts detected! Keeping OUR files (MootComb)..."
+            
+            # Get conflicted files
+            CONFLICT_FILES=$(git diff --name-only --diff-filter=U)
+            
+            if [ -z "$CONFLICT_FILES" ]; then
+              echo "❌ No conflicted files found, but merge failed"
+              git merge --abort
+              echo "HAS_CHANGES=false" >> $GITHUB_ENV
+              exit 0
+            fi
+            
+            # For each conflicted file, take OUR version
+            for file in $CONFLICT_FILES; do
+              echo "  🛡️ Keeping our file: $file"
+              git checkout --ours "$file" 2>/dev/null || true
+              git add "$file"
+            done
+            
+            echo "✅ Conflicts resolved in favor of our files"
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Commit and push changes
+        if: env.HAS_CHANGES == 'true'
+        id: push
+        run: |
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes to commit"
+            echo "pushed=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "Sync: merged from MANCrimSon (kept our files) $(date -u '+%Y-%m-%d %H:%M:%S')"
+            git push origin main
+            echo "✅ Changes pushed to MootComb!"
+            echo "pushed=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Set output
+        id: check-push
+        run: |
+          if [ "${{ steps.push.outputs.pushed }}" == "true" ] || [ "${{ env.HAS_CHANGES }}" == "true" ]; then
+            echo "pushed=true" >> $GITHUB_OUTPUT
+          else
+            echo "pushed=false" >> $GITHUB_OUTPUT
           fi
 
-          git add -A
-          git commit -m "Sync from j-hc/revanced-magisk-module"
-          git push https://${{ github.actor }}:${SYNC_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
+  trigger-build:
+    needs: sync
+    if: needs.sync.outputs.pushed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger build workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: workflow } = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build.yml',
+              ref: 'main'
+            });
+            console.log('✅ Build workflow triggered successfully!');
