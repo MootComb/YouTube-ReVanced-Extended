@@ -5,4 +5,4 @@ Install instructions: [Root](https://github.com/MANCrimSon/YouTube-ReVanced-Exte
 Patches: anddea/patches-4.3.0-dev.2.mpp  
 [Changelog](https://github.com/anddea/revanced-patches/releases/tag/v4.3.0-dev.2)
 
-CLI: MorpheApp/morphe-desktop-1.14.0-dev.1-all.jar    
+CLI: MorpheApp/morphe-desktop-1.14.0-dev.2-all.jar    
