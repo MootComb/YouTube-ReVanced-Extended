@@ -109,10 +109,14 @@ get_prebuilts() {
 		else abort unreachable; fi
 
 		local url tag_name matches
+		# Guarded: under set -e/pipefail, this would otherwise abort the whole
+		# script whenever $file is empty (the normal case - no local copy yet)
+		# and grep finds nothing to match, exactly like the extensions_ext case
+		# below. No match here just means "go fetch it".
 		if [ "$ver" = "latest" ]; then
-			file=$(grep -v '/[^/]*dev[^/]*$' <<<"$file" | head -1)
+			file=$(grep -v '/[^/]*dev[^/]*$' <<<"$file" | head -1) || :
 		else
-			file=$(grep "/[^/]*${ver#v}[^/]*\$" <<<"$file" | head -1)
+			file=$(grep "/[^/]*${ver#v}[^/]*\$" <<<"$file" | head -1) || :
 		fi
 		if [ -z "$file" ]; then
 			local resp asset name
@@ -149,8 +153,16 @@ get_prebuilts() {
 			if [ "$grab_cl" = true ]; then echo -e "[Changelog](https://github.com/${src}/releases/tag/${tag_name})\n" >>"${cl_dir}/changelog.md"; fi
 			if [ "$REMOVE_RV_INTEGRATIONS_CHECKS" = true ]; then
 				local extensions_ext
-				extensions_ext=$(unzip -l "${file}" "extensions/shared.*" | grep -o "shared\..*") extensions_ext="${extensions_ext#*.}"
-				if ! (
+				# Under set -e/pipefail, an unguarded "$(cmd1 | cmd2)" assignment
+				# aborts the whole script the instant grep finds no match - which
+				# happens whenever a bundle simply has no extensions/shared.* to
+				# patch (e.g. some patches sources never had it, or don't anymore).
+				# That's a "nothing to do here" case, not a fatal error.
+				extensions_ext=$(unzip -l "${file}" "extensions/shared.*" 2>/dev/null | grep -o "shared\..*" || :)
+				extensions_ext="${extensions_ext#*.}"
+				if [ -z "$extensions_ext" ]; then
+					pr "'${file}' has no extensions/shared.* to patch, skipping revanced-integrations check removal"
+				elif ! (
 					mkdir -p "${file}-zip" || return 1
 					unzip -qo "${file}" -d "${file}-zip" || return 1
 					java -cp "${BIN_DIR}/paccer.jar:${BIN_DIR}/dexlib2.jar" com.jhc.Main "${file}-zip/extensions/shared.${extensions_ext}" "${file}-zip/extensions/shared-patched.${extensions_ext}" || return 1
@@ -161,7 +173,7 @@ get_prebuilts() {
 				) >&2; then
 					echo >&2 "Patching revanced-integrations failed"
 				fi
-				rm -r "${file}-zip" || :
+				rm -r "${file}-zip" 2>/dev/null || :
 			fi
 		fi
 		echo -n "$file "
@@ -342,12 +354,54 @@ get_highest_ver() {
 	local vers m
 	vers=$(tee)
 	m=$(head -1 <<<"$vers")
-	# Sort the whole string (not just the part before the first "-"), so
-	# a trailing "-dev.N" suffix is compared numerically too. Restricting
-	# to field 1 made e.g. "v4.3.0-dev.9"/"-dev.10"/"-dev.11" all tie (same
-	# base version), silently falling back to whatever order the caller's
-	# input happened to be in instead of picking the actual highest one.
-	if ! semver_validate "$m"; then echo "$m"; else sort -Vr <<<"$vers" | head -1; fi
+	if ! semver_validate "$m"; then
+		echo "$m"
+		return
+	fi
+	# Find the highest base version (the part before any "-prerelease"
+	# suffix) with a numeric sort on that alone, since GNU `sort -V` ranks a
+	# tag *with* a suffix as greater than the same base *without* one (e.g.
+	# "v1.40.0-dev.23" > "v1.40.0") - the opposite of semver's own rule that
+	# a pre-release has lower precedence than its associated normal release.
+	# Left unfixed, this made a "dev" patches-version channel latch onto the
+	# last prerelease tag forever and never notice the stable release that
+	# actually superseded it.
+	local top_base v base stable=""
+	top_base=$(while IFS= read -r v; do echo "${v#v}"; done <<<"$vers" | cut -d- -f1 | sort -Vr | head -1)
+	while IFS= read -r v; do
+		base=${v#v} base=${base%%-*}
+		if [ "$base" = "$top_base" ] && [[ $v != *-* ]]; then
+			stable=$v
+			break
+		fi
+	done <<<"$vers"
+	if [ -n "$stable" ]; then
+		echo "$stable"
+		return
+	fi
+	# No stable release at the top base yet - compare its prereleases
+	# directly. Sorting the whole string (not just the part before the first
+	# "-") here still matters: it's what correctly ranks e.g.
+	# "v4.3.0-dev.9"/"-dev.10"/"-dev.11" against each other, since comparing
+	# only the base would tie them all at "4.3.0".
+	#
+	# The filter loop below must use "if ...; then echo; fi", not
+	# "[ ... ] && echo": a bare "&&" makes the whole loop body's (and thus the
+	# while loop's, and thus this pipeline's) exit status the test's own
+	# non-zero result whenever the *last* input line doesn't match top_base -
+	# which is the common case. Under pipefail that failure outranks sort/head
+	# both succeeding right after it, so the function returned non-zero here
+	# despite already having echoed the correct answer, making every "|| return
+	# 1"/"|| continue" caller treat a fully successful resolution as a hard
+	# failure whenever the winning version had no stable release yet (e.g. a
+	# CLI/patches source still on "vX.Y.Z-dev.N"). An "if" with no "else"
+	# always returns 0 when its condition is false, sidestepping that.
+	{
+		while IFS= read -r v; do
+			base=${v#v} base=${base%%-*}
+			if [ "$base" = "$top_base" ]; then echo "$v"; fi
+		done <<<"$vers"
+	} | sort -Vr | head -1
 }
 semver_validate() {
 	local a="${1%-*}"
