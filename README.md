@@ -9,7 +9,7 @@ Every build ships in two flavors — **Root** (a Magisk/KernelSU module) and **N
 rebuilt automatically as soon as new patches are released.
 
 [![Latest release](https://img.shields.io/github/v/release/MANCrimSon/YouTube-ReVanced-Extended?label=release&color=blue)](../../releases/latest)
-[![Build Modules](../../actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
+[![Downloads](https://img.shields.io/github/downloads/MANCrimSon/YouTube-ReVanced-Extended/total?label=downloads&color=success)](../../releases)
 
 ## Download
 
