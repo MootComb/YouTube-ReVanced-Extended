@@ -1,4 +1,4 @@
-YouTube-Extended: 20.51.39  
+YouTube: 20.51.39  
 
 Install instructions: [Root](https://github.com/MANCrimSon/YouTube-ReVanced-Extended#root--installation) · [NonRoot + Obtainium](https://github.com/MANCrimSon/YouTube-ReVanced-Extended#nonroot--installation-and-auto-updates-via-obtainium)
   
