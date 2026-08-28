@@ -4,14 +4,14 @@ parallel-jobs = 1
 cli-source = "MorpheApp/morphe-cli"
 cli-version = "dev"
 
-[YouTube-Extended]
+[YouTube]
 enabled = true
 app-name = "YouTube"
-rv-brand = "ReVanced Extended"
+rv-brand = "ReVanced"
 build-mode = "module"
 patches-source = "anddea/revanced-patches"
 patches-version = "dev"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.youtube"
-excluded-patches = "'Custom branding icon for YouTube' 'Custom branding name for YouTube' 'Custom header for YouTube'"
+excluded-patches = "'Custom branding icon for YouTube' 'Custom branding name for YouTube'"
