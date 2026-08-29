@@ -1,8 +1,8 @@
 YouTube: 20.51.39  
 
-Install instructions: [Root](https://github.com/MANCrimSon/YouTube-ReVanced-Extended#root--installation) · [NonRoot + Obtainium](https://github.com/MANCrimSon/YouTube-ReVanced-Extended#nonroot--installation-and-auto-updates-via-obtainium)
+Install instructions: [NonRoot + Obtainium](https://github.com/MANCrimSon/YouTube-ReVanced-Extended#nonroot--installation-and-auto-updates-via-obtainium) · [Root](https://github.com/MANCrimSon/YouTube-ReVanced-Extended#root--installation)
   
 Patches: anddea/patches-4.3.0-dev.4.mpp  
 [Changelog](https://github.com/anddea/revanced-patches/releases/tag/v4.3.0-dev.4)
 
-CLI: MorpheApp/morphe-desktop-1.15.0-dev.2-all.jar    
+CLI: MorpheApp/morphe-desktop-1.15.0-dev.4-all.jar    
