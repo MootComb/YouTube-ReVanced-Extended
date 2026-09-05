@@ -8,7 +8,7 @@ Automated builds of modified **YouTube** and **YouTube Music** — on two patch 
 Every build ships in two flavors — **NonRoot** (a plain APK) and **Root** (a Magisk/KernelSU module) — and gets
 rebuilt automatically as soon as new patches are released.
 
-<!--release--><a href="../../releases/latest"><img src="https://img.shields.io/badge/release-v402-blue" alt="Latest release"></a><!--/release--> <!--downloads--><a href="../../releases"><img src="https://img.shields.io/badge/downloads-456.4k-success" alt="Downloads"></a><!--/downloads-->
+<!--release--><a href="../../releases/latest"><img src="https://img.shields.io/badge/release-v403-blue" alt="Latest release"></a><!--/release--> <!--downloads--><a href="../../releases"><img src="https://img.shields.io/badge/downloads-458.9k-success" alt="Downloads"></a><!--/downloads-->
 
 ## Download
 
@@ -17,10 +17,10 @@ in [**Releases**](../../releases)). YouTube Music ships two architectures — pi
 
 | Build | NonRoot (APK) | Root (module) |
 |---|---|---|
-| YouTube — ReVanced Extended (anddea) | <!--yt-rvx-apk-->[Download](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/400/youtube-revanced-extended-v20.51.39-all.apk)<!--/yt-rvx-apk--> | <!--yt-rvx-zip-->[Download](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/400/youtube-revanced-extended-module-v20.51.39-all.zip)<!--/yt-rvx-zip--> |
-| YouTube Music — ReVanced Extended (anddea) | <!--ytm-rvx-apk-arm64-->[arm64-v8a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/400/youtube-music-revanced-extended-v9.15.51-arm64-v8a.apk)<!--/ytm-rvx-apk-arm64--><br><br><!--ytm-rvx-apk-armv7-->[arm-v7a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/400/youtube-music-revanced-extended-v9.15.51-arm-v7a.apk)<!--/ytm-rvx-apk-armv7--> | <!--ytm-rvx-zip-arm64-->[arm64-v8a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/400/youtube-music-revanced-extended-module-v9.15.51-arm64-v8a.zip)<!--/ytm-rvx-zip-arm64--><br><br><!--ytm-rvx-zip-armv7-->[arm-v7a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/400/youtube-music-revanced-extended-module-v9.15.51-arm-v7a.zip)<!--/ytm-rvx-zip-armv7--> |
-| YouTube — Morphe (+ Yandex VoT) | <!--yt-morphe-apk-->[Download](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/402/youtube-morphe-v21.07.247-all.apk)<!--/yt-morphe-apk--> | <!--yt-morphe-zip-->[Download](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/402/youtube-morphe-module-v21.07.247-all.zip)<!--/yt-morphe-zip--> |
-| YouTube Music — Morphe | <!--ytm-morphe-apk-arm64-->[arm64-v8a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/401/youtube-music-morphe-v9.15.51-arm64-v8a.apk)<!--/ytm-morphe-apk-arm64--><br><br><!--ytm-morphe-apk-armv7-->[arm-v7a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/401/youtube-music-morphe-v9.15.51-arm-v7a.apk)<!--/ytm-morphe-apk-armv7--> | <!--ytm-morphe-zip-arm64-->[arm64-v8a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/401/youtube-music-morphe-module-v9.15.51-arm64-v8a.zip)<!--/ytm-morphe-zip-arm64--><br><br><!--ytm-morphe-zip-armv7-->[arm-v7a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/401/youtube-music-morphe-module-v9.15.51-arm-v7a.zip)<!--/ytm-morphe-zip-armv7--> |
+| YouTube — ReVanced Extended (anddea) | <!--yt-rvx-apk-->[Download](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-revanced-extended-v21.07.247-all.apk)<!--/yt-rvx-apk--> | <!--yt-rvx-zip-->[Download](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-revanced-extended-module-v21.07.247-all.zip)<!--/yt-rvx-zip--> |
+| YouTube Music — ReVanced Extended (anddea) | <!--ytm-rvx-apk-arm64-->[arm64-v8a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-music-revanced-extended-v9.15.51-arm64-v8a.apk)<!--/ytm-rvx-apk-arm64--><br><br><!--ytm-rvx-apk-armv7-->[arm-v7a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-music-revanced-extended-v9.15.51-arm-v7a.apk)<!--/ytm-rvx-apk-armv7--> | <!--ytm-rvx-zip-arm64-->[arm64-v8a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-music-revanced-extended-module-v9.15.51-arm64-v8a.zip)<!--/ytm-rvx-zip-arm64--><br><br><!--ytm-rvx-zip-armv7-->[arm-v7a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-music-revanced-extended-module-v9.15.51-arm-v7a.zip)<!--/ytm-rvx-zip-armv7--> |
+| YouTube — Morphe (+ Yandex VoT) | <!--yt-morphe-apk-->[Download](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-morphe-v21.07.247-all.apk)<!--/yt-morphe-apk--> | <!--yt-morphe-zip-->[Download](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-morphe-module-v21.07.247-all.zip)<!--/yt-morphe-zip--> |
+| YouTube Music — Morphe | <!--ytm-morphe-apk-arm64-->[arm64-v8a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-music-morphe-v9.15.51-arm64-v8a.apk)<!--/ytm-morphe-apk-arm64--><br><br><!--ytm-morphe-apk-armv7-->[arm-v7a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-music-morphe-v9.15.51-arm-v7a.apk)<!--/ytm-morphe-apk-armv7--> | <!--ytm-morphe-zip-arm64-->[arm64-v8a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-music-morphe-module-v9.15.51-arm64-v8a.zip)<!--/ytm-morphe-zip-arm64--><br><br><!--ytm-morphe-zip-armv7-->[arm-v7a](https://github.com/MANCrimSon/YouTube-ReVanced-Extended/releases/download/403/youtube-music-morphe-module-v9.15.51-arm-v7a.zip)<!--/ytm-morphe-zip-armv7--> |
 
 ## NonRoot — installation and auto-updates via Obtainium
 
@@ -49,32 +49,51 @@ anything in a desktop browser).
 <details>
 <summary><b>YouTube & YouTube Music — ReVanced Extended (anddea)</b></summary>
 
-If videos or music tracks stop playing after a few seconds or buffer infinitely:
+If videos or music tracks stop playing after a few seconds or buffer infinitely, try the following solutions:
 
-1. **YouTube:** Go to `Settings` ➔ `RVX` ➔ `Miscellaneous` ➔ `Spoof video streams` ➔ toggle `Spoof video streams` (**On**) and set **Default client** to **`TV Simply`** (priority client with built-in PoToken generation). Alternatively, try switching to another client or toggling the feature **Off**.
-2. **YouTube Music:** Go to `Settings` ➔ `RVX` ➔ `Miscellaneous` ➔ toggle `Spoof video streams` (**On**) and set **Default client** to **`TV Simply`** (priority client with built-in PoToken generation). Alternatively, try switching to another client or toggling the feature **Off**.
+#### 1. Primary solution — Built-in PoToken (Recommended)
+anddea patches include a built-in PoToken generator (no external PotHelper required):
+1. **YouTube:** Go to `Settings` → `RVX` → `Miscellaneous` → `Spoof video streams`:
+   - Turn **OFF** stream spoofing: `Spoof video streams` (**Off**).
+   - Turn **ON** PoToken: `PoToken provider` (**On**).
+2. **YouTube Music:** Go to `Settings` → `RVX` → `Miscellaneous`:
+   - Turn **OFF** stream spoofing: `Spoof video streams` (**Off**).
+   - Turn **ON** PoToken: `PoToken provider` (**On**).
+3. Restart the app (if buffering persists, force stop **MicroG RE** in Android system settings).
+
+#### 2. Fallback solution — Spoof video streams
+1. **YouTube:** Go to `Settings` → `RVX` → `Miscellaneous` → `Spoof video streams`:
+   - Turn **OFF** PoToken: `PoToken provider` (**Off**).
+   - Turn **ON** stream spoofing: `Spoof video streams` (**On**), then select a suitable **Default client** (or try toggling the feature **Off**).
+2. **YouTube Music:** Go to `Settings` → `RVX` → `Miscellaneous`:
+   - Turn **OFF** PoToken: `PoToken provider` (**Off**).
+   - Turn **ON** stream spoofing: `Spoof video streams` (**On**), then select a suitable **Default client** (or try toggling the feature **Off**).
 3. Restart the app.
 
-> *Note: Due to regional restrictions or network DPI blocks, playback may still be unstable — check your network bypass tools if needed.*
+> [!NOTE]
+> Due to regional network restrictions or DPI blocking, playback may still be affected by ISP filters — verify your network bypass or VPN configuration if needed.
 </details>
 
 <details>
 <summary><b>YouTube & YouTube Music — Morphe</b></summary>
 
-Morphe provides two methods to resolve playback issues:
+If videos or music tracks stop playing after a few seconds or buffer infinitely, try the following solutions:
 
-#### 1. Primary solution — PoToken (Recommended)
+#### 1. Primary solution — PoToken via PotHelper (Recommended)
 1. Install [**PotHelper**](https://github.com/MorpheApp/PotHelper/releases/latest) ([Import into Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22app.morphe.pot.helper%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FMorpheApp%2FPotHelper%22%2C%22author%22%3A%22MorpheApp%22%2C%22name%22%3A%22PotHelper%22%2C%22additionalSettings%22%3A%22%7B%5C%22fallbackToOlderReleases%5C%22%3Atrue%7D%22%7D)).
-2. Turn **OFF** stream spoofing: `Settings` ➔ `Morphe` ➔ `Miscellaneous` ➔ `Spoof video streams` ➔ toggle `Spoof video streams` (**Off**).
-3. Turn **ON** PoToken: `Settings` ➔ `Morphe` ➔ `Miscellaneous` ➔ `PoToken provider` ➔ toggle `External PoToken provider` (**On**).
-4. Restart the app.
-
-#### 2. Fallback solution — Spoof video streams
-1. Turn **OFF** PoToken: `Settings` ➔ `Morphe` ➔ `Miscellaneous` ➔ `PoToken provider` ➔ toggle `External PoToken provider` (**Off**).
-2. Turn **ON** stream spoofing: `Settings` ➔ `Morphe` ➔ `Miscellaneous` ➔ `Spoof video streams` ➔ toggle `Spoof video streams` (**On**), then select a suitable **Default client** (or try toggling the feature **Off**).
+2. Go to `Settings` → `Morphe` → `Miscellaneous`:
+   - Turn **OFF** stream spoofing: `Spoof video streams` → `Spoof video streams` (**Off**).
+   - Turn **ON** PoToken: `PoToken provider` → `External PoToken provider` (**On**).
 3. Restart the app.
 
-> *Note: Due to regional restrictions or network DPI blocks, playback may still be unstable — check your network bypass tools if needed.*
+#### 2. Fallback solution — Spoof video streams
+1. Go to `Settings` → `Morphe` → `Miscellaneous`:
+   - Turn **OFF** PoToken: `PoToken provider` → `External PoToken provider` (**Off**).
+   - Turn **ON** stream spoofing: `Spoof video streams` → `Spoof video streams` (**On**), then select a suitable **Default client** (or try toggling the feature **Off**).
+2. Restart the app.
+
+> [!NOTE]
+> Due to regional network restrictions or DPI blocking, playback may still be affected by ISP filters — verify your network bypass or VPN configuration if needed.
 </details>
 
 </details>
@@ -84,14 +103,14 @@ Morphe provides two methods to resolve playback issues:
 <details>
 <summary>Instructions</summary>
 
-1. Install the module archive via Magisk/KernelSU ➔ reboot.
+1. Install the module archive via Magisk/KernelSU → reboot.
 2. Detach the app from Google Play updates, otherwise Play Store will overwrite the patch:
    - Magisk: enable Zygisk.
    - KernelSU: install [**ZygiskNext**](https://github.com/Dr-TSNG/ZygiskNext/releases).
    - Install [**zygisk-detach**](https://github.com/j-hc/zygisk-detach/releases) +
-     [**zygisk-detach-app**](https://github.com/j-hc/zygisk-detach-app/releases), grant root ➔ reboot.
-   - In zygisk-detach-app, pick the app ➔ Detach.
-3. KernelSU only: KSU App ➔ Superuser ➔ app ➔ Unmount modules: Off ➔ reboot the device.
+     [**zygisk-detach-app**](https://github.com/j-hc/zygisk-detach-app/releases), grant root → reboot.
+   - In zygisk-detach-app, pick the app → Detach.
+3. KernelSU only: KSU App → Superuser → app → Unmount modules: Off → reboot the device.
 4. To update: hit \"Update\" in Magisk/KernelSU, or just flash the new archive on top.
 
 If you get a **\"Reflash needed\"** error after rebooting, or root detectors complain about a
