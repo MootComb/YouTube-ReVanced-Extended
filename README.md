@@ -43,6 +43,14 @@ opens directly in the app with the source and APK filter already configured, jus
 These links only work on a device with Obtainium installed (they're `obtainium://` deep links, they won't do
 anything in a desktop browser).
 
+> [!TIP]
+> **In-App Update Checker (Experimental / Beta):**  
+> All NonRoot builds now include a built-in update checker. You can manually check for new releases at any time directly in the app:
+> - **YouTube & YT Music (RVX / anddea):** `Settings` → `RVX` → `Patch updates`
+> - **YouTube & YT Music (Morphe):** `Settings` → `Morphe` → `Patch updates`
+>
+> The dialog displays the new build number, patch version, a direct changelog link, one-click APK download, and snooze options.
+
 <details>
 <summary><b>Troubleshooting playback issues (infinite buffering)</b></summary>
 

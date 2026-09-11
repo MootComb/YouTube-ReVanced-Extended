@@ -9,3 +9,6 @@ build.md
 state.md
 cmpr
 *-temporary-files
+/libs
+/tools
+/build_work
