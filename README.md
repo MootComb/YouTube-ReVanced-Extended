@@ -46,8 +46,8 @@ anything in a desktop browser).
 > [!TIP]
 > **In-App Update Checker (Experimental / Beta):**  
 > All NonRoot builds now include a built-in update checker. You can manually check for new releases at any time directly in the app:
-> - **YouTube & YT Music (RVX / anddea):** `Settings` → `RVX` → `Patch updates` *(«Обновление патчей»)*
-> - **YouTube & YT Music (Morphe):** `Settings` → `Morphe` → `Patch updates` *(«Обновление патчей»)*
+> - **YouTube & YT Music (RVX / anddea):** `Settings` → `RVX` → `Patch updates`
+> - **YouTube & YT Music (Morphe):** `Settings` → `Morphe` → `Patch updates`
 >
 > The dialog displays the new build number, patch version, a direct changelog link, one-click APK download, and snooze options.
 
