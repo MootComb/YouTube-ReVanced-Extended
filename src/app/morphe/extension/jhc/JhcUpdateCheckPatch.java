@@ -28,21 +28,34 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.content.pm.ShortcutInfo;
-import android.content.pm.ShortcutManager;
-import android.graphics.drawable.Icon;
 import android.app.Application;
+import android.app.Fragment;
+import android.app.FragmentManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Icon;
+import android.content.ComponentName;
+import android.content.pm.ShortcutManager;
 import android.os.Bundle;
+import android.preference.Preference;
+import android.preference.PreferenceActivity;
+import android.preference.PreferenceFragment;
+import android.preference.PreferenceScreen;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -88,6 +101,21 @@ public class JhcUpdateCheckPatch {
             }
         }
     }
+    private static String getAppDisplayName(Context context) {
+        String pkg = (context != null) ? context.getPackageName().toLowerCase(Locale.ROOT) : "";
+        boolean isMusic = pkg.contains("music");
+        boolean isAnddea = pkg.contains("anddea") || pkg.contains("rvx");
+        if (isMusic) {
+            return isAnddea ? "YT Music RVX" : "YT Music Morphe";
+        } else {
+            return isAnddea ? "YouTube RVX" : "YouTube Morphe";
+        }
+    }
+    private static String getSettingsBrandName(Context context) {
+        String pkg = (context != null) ? context.getPackageName().toLowerCase(Locale.ROOT) : "";
+        boolean isAnddea = pkg.contains("anddea") || pkg.contains("rvx");
+        return isAnddea ? "RVX" : "Morphe";
+    }
     private static final String OBTAINIUM_DOWNLOAD_URL = "https://github.com/ImranR98/Obtainium/releases/latest";
 
     private static final String ACTION_MANUAL_CHECK = "app.morphe.action.CHECK_UPDATES";
@@ -96,9 +124,9 @@ public class JhcUpdateCheckPatch {
     private static final long STARTUP_DELAY_MS = 10000L;
     // 24 hours cooldown between automatic background checks
     private static final long API_COOLDOWN_MS = 86_400_000L;
-    // Current latest release in MANCrimSon/YouTube-ReVanced-Extended is 410.
-    // In CI build, NEXT_VER_CODE will dynamically overwrite this with the next tag (e.g. 411).
-    private static final int EMBEDDED_BUILD_CODE = 410;
+    // Current latest release in MANCrimSon/YouTube-ReVanced-Extended is 411.
+    // In CI build, NEXT_VER_CODE will dynamically overwrite this with the next tag (e.g. 412).
+    private static final int EMBEDDED_BUILD_CODE = 411;
     // FALSE: dialog only appears if new update is available (and cooldown/snooze respected)
     private static final boolean FORCE_TEST_ALWAYS_SHOW = false;
 
@@ -113,7 +141,7 @@ public class JhcUpdateCheckPatch {
         } catch (Throwable ignored) {}
 
         registerLifecycleIfNeeded(context);
-        registerShortcut(context);
+        cleanupShortcuts(context);
 
         boolean isManual = false;
         if (context instanceof Activity) {
@@ -156,6 +184,8 @@ public class JhcUpdateCheckPatch {
     }
 
     private static boolean lifecycleRegistered = false;
+    private static final String PREF_KEY_UPDATE = "jhc_morphe_update_check_action_sort_by_unsorted";
+    private static WeakReference<Activity> currentActivityRef = new WeakReference<>(null);
 
     private static void registerLifecycleIfNeeded(Context context) {
         if (lifecycleRegistered || context == null) return;
@@ -173,16 +203,40 @@ public class JhcUpdateCheckPatch {
                 app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
                     @Override
                     public void onActivityResumed(Activity activity) {
+                        currentActivityRef = new WeakReference<>(activity);
                         Intent intent = activity.getIntent();
                         if (intent != null && ACTION_MANUAL_CHECK.equals(intent.getAction())) {
                             intent.setAction(Intent.ACTION_MAIN);
                             showToast(activity, getString("toast_checking_updates"));
                             new Thread(() -> performCheck(activity, true)).start();
                         }
+                        scheduleInjection(activity);
                     }
 
-                    @Override public void onActivityCreated(Activity a, Bundle b) {}
-                    @Override public void onActivityStarted(Activity a) {}
+                    @Override
+                    public void onActivityStarted(Activity activity) {
+                        scheduleInjection(activity);
+                    }
+
+                    @Override
+                    public void onActivityCreated(Activity a, Bundle b) {
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                a.getFragmentManager().registerFragmentLifecycleCallbacks(
+                                    new FragmentManager.FragmentLifecycleCallbacks() {
+                                        @Override
+                                        public void onFragmentResumed(FragmentManager fm, Fragment f) {
+                                            tryInjectIntoFragment(f, a);
+                                        }
+                                        @Override
+                                        public void onFragmentStarted(FragmentManager fm, Fragment f) {
+                                            tryInjectIntoFragment(f, a);
+                                        }
+                                    }, true);
+                            }
+                        } catch (Throwable ignored) {}
+                    }
+
                     @Override public void onActivityPaused(Activity a) {}
                     @Override public void onActivityStopped(Activity a) {}
                     @Override public void onActivitySaveInstanceState(Activity a, Bundle b) {}
@@ -194,86 +248,425 @@ public class JhcUpdateCheckPatch {
         }
     }
 
-    private static Icon createShortcutIcon(Context context) {
+    private static void scheduleInjection(Activity activity) {
+        if (activity == null) return;
+        currentActivityRef = new WeakReference<>(activity);
+        Handler handler = new Handler(Looper.getMainLooper());
+        runInjectionPass(activity);
+        handler.postDelayed(() -> runInjectionPass(activity), 150L);
+        handler.postDelayed(() -> runInjectionPass(activity), 450L);
+        handler.postDelayed(() -> runInjectionPass(activity), 1000L);
+    }
+
+    private static void runInjectionPass(Activity activity) {
+        if (activity == null || activity.isFinishing()) return;
+        if (Build.VERSION.SDK_INT >= 17 && activity.isDestroyed()) return;
+
         try {
-            float density = context.getResources().getDisplayMetrics().density;
-            int size = (int) (96 * density);
-            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
+            // 1. Попытка через статические инстансы Morphe / RVX
+            tryInjectFromStaticInstances(activity);
 
-            // White circular badge
-            Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            bgPaint.setColor(Color.WHITE);
-            canvas.drawCircle(size / 2f, size / 2f, size / 2f - (2 * density), bgPaint);
-
-            // Red circular update arrow (YouTube Brand Red)
-            Paint arrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            arrowPaint.setColor(Color.parseColor("#FF0000"));
-            arrowPaint.setStyle(Paint.Style.STROKE);
-            arrowPaint.setStrokeWidth(5.5f * density);
-            arrowPaint.setStrokeCap(Paint.Cap.ROUND);
-
-            float pad = size * 0.28f;
-            RectF arcBounds = new RectF(pad, pad, size - pad, size - pad);
-            canvas.drawArc(arcBounds, 40, 275, false, arrowPaint);
-
-            // Arrow head in YouTube Red
-            Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            fillPaint.setColor(Color.parseColor("#FF0000"));
-            fillPaint.setStyle(Paint.Style.FILL);
-
-            float arrowSize = 6.5f * density;
-            Path head = new Path();
-            float tipX = size - pad;
-            float tipY = size / 2f;
-            head.moveTo(tipX, tipY - arrowSize * 1.5f);
-            head.lineTo(tipX + arrowSize * 1.6f, tipY + arrowSize * 0.4f);
-            head.lineTo(tipX - arrowSize * 1.3f, tipY + arrowSize * 0.4f);
-            head.close();
-            canvas.drawPath(head, fillPaint);
-
+            // 2. Попытка через FragmentManager Activity
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                return Icon.createWithAdaptiveBitmap(bitmap);
-            } else {
-                return Icon.createWithBitmap(bitmap);
+                FragmentManager fm = activity.getFragmentManager();
+                if (fm != null) {
+                    List<Fragment> fragments = fm.getFragments();
+                    if (fragments != null) {
+                        for (Fragment f : fragments) {
+                            if (f != null && tryInjectIntoFragment(f, activity)) {
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Попытка через SupportFragmentManager (AndroidX FragmentActivity)
+            try {
+                Method getSupportFm = activity.getClass().getMethod("getSupportFragmentManager");
+                Object sfm = getSupportFm.invoke(activity);
+                if (sfm != null) {
+                    Method getFragments = sfm.getClass().getMethod("getFragments");
+                    Object listObj = getFragments.invoke(sfm);
+                    if (listObj instanceof List) {
+                        for (Object f : (List<?>) listObj) {
+                            if (f != null && tryInjectIntoFragment(f, activity)) {
+                                return;
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {}
+
+            // 4. Попытка если сама Activity является PreferenceActivity
+            if (activity instanceof PreferenceActivity) {
+                PreferenceScreen screen = ((PreferenceActivity) activity).getPreferenceScreen();
+                if (screen != null && isRootMorpheOrRvxScreen(screen, null)) {
+                    tryInjectIntoScreen(screen, activity);
+                }
             }
         } catch (Throwable t) {
-            Log.e(TAG, "Failed to create custom shortcut icon", t);
-            return null;
+            Log.d(TAG, "runInjectionPass error: " + t.getMessage());
         }
     }
 
-    private static void registerShortcut(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+    private static void tryInjectFromStaticInstances(Activity activity) {
+        if (activity == null) return;
+        String[] knownFragmentClasses = new String[] {
+            "app.morphe.extension.shared.settings.preference.AbstractPreferenceFragment",
+            "app.morphe.extension.shared.settings.preference.ToolbarPreferenceFragment",
+            "app.morphe.extension.music.settings.preference.YouTubeMusicPreferenceFragment",
+            "app.revanced.extension.shared.settings.preference.AbstractPreferenceFragment",
+            "anddea.extension.shared.settings.preference.AbstractPreferenceFragment"
+        };
+
+        for (String clsName : knownFragmentClasses) {
             try {
-                ShortcutManager sm = (ShortcutManager) context.getSystemService(Context.SHORTCUT_SERVICE);
-                if (sm != null) {
-                    Intent shortcutIntent = new Intent(context, context.getClass());
-                    shortcutIntent.setAction(ACTION_MANUAL_CHECK);
-                    shortcutIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-
-                    ShortcutInfo.Builder builder = new ShortcutInfo.Builder(context, "morphe_check_updates")
-                        .setShortLabel(getString("shortcut_label"))
-                        .setLongLabel(getString("shortcut_long_label"))
-                        .setIntent(shortcutIntent);
-
-                    Icon customIcon = createShortcutIcon(context);
-                    if (customIcon != null) {
-                        builder.setIcon(customIcon);
-                    } else {
-                        try {
-                            int iconRes = context.getApplicationInfo().icon;
-                            if (iconRes != 0) {
-                                builder.setIcon(Icon.createWithResource(context, iconRes));
-                            }
-                        } catch (Throwable ignored) {}
+                Class<?> clazz = Class.forName(clsName);
+                Field instanceField = clazz.getField("instance");
+                Object weakRefObj = instanceField.get(null);
+                if (weakRefObj instanceof WeakReference) {
+                    Object fragment = ((WeakReference<?>) weakRefObj).get();
+                    if (fragment != null) {
+                        if (tryInjectIntoFragment(fragment, activity)) {
+                            return;
+                        }
                     }
+                }
+            } catch (Throwable ignored) {}
+        }
+    }
 
-                    sm.setDynamicShortcuts(Collections.singletonList(builder.build()));
+    private static boolean tryInjectIntoFragment(Object fragment, Activity activity) {
+        if (fragment == null || activity == null) return false;
+        try {
+            Class<?> cls = fragment.getClass();
+            Method getScreenMethod = null;
+            try {
+                getScreenMethod = cls.getMethod("getPreferenceScreen");
+            } catch (NoSuchMethodException ignored) {}
+
+            if (getScreenMethod == null) return false;
+
+            Object screenObj = getScreenMethod.invoke(fragment);
+            if (screenObj instanceof PreferenceScreen) {
+                PreferenceScreen screen = (PreferenceScreen) screenObj;
+                if (isRootMorpheOrRvxScreen(screen, fragment)) {
+                    return tryInjectIntoScreen(screen, activity);
+                }
+            }
+        } catch (Throwable t) {
+            Log.d(TAG, "tryInjectIntoFragment: " + t.getMessage());
+        }
+        return false;
+    }
+
+    private static boolean isRootMorpheOrRvxScreen(PreferenceScreen screen, Object fragment) {
+        if (screen == null) return false;
+
+        // 1. Проверяем класс фрагмента, если передан
+        if (fragment != null) {
+            String clsName = fragment.getClass().getName().toLowerCase(Locale.ROOT);
+            boolean isMorpheOrRvx = clsName.contains("morphe") 
+                                 || clsName.contains("revanced") 
+                                 || clsName.contains("anddea") 
+                                 || clsName.contains("preference");
+            if (!isMorpheOrRvx) {
+                return false;
+            }
+        }
+
+        // 2. Проверяем ключ экрана на предмет вложенных подэкранов
+        String key = screen.getKey();
+        if (key != null) {
+            String keyLower = key.toLowerCase(Locale.ROOT);
+            if (keyLower.contains("player") || keyLower.contains("sponsorblock")
+                    || keyLower.contains("video") || keyLower.contains("audio")
+                    || keyLower.contains("overlay") || keyLower.contains("layout")
+                    || keyLower.contains("ads") || keyLower.contains("sub_")
+                    || keyLower.contains("flyout") || keyLower.contains("general")) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean tryInjectIntoScreen(PreferenceScreen screen, Activity activity) {
+        if (screen == null || activity == null) return false;
+        try {
+            if (screen.findPreference(PREF_KEY_UPDATE) != null) {
+                return true;
+            }
+
+            Preference pref = new Preference(activity) {
+                @Override
+                public View getView(View convertView, ViewGroup parent) {
+                    View view = super.getView(convertView, parent);
+                    bindIconView(activity, view);
+                    return view;
+                }
+
+                @Override
+                protected void onBindView(View view) {
+                    super.onBindView(view);
+                    bindIconView(activity, view);
+                }
+            };
+            pref.setKey(PREF_KEY_UPDATE);
+            pref.setTitle(getString("update_settings_title"));
+            pref.setPersistent(false);
+            pref.setOrder(99999);
+
+            // 1. Копируем layoutResource из экрана только если он принадлежит пакету приложения (0x7f......)
+            int layoutRes = 0;
+            if (screen.getPreferenceCount() > 0) {
+                for (int i = 0; i < screen.getPreferenceCount(); i++) {
+                    Preference p = screen.getPreference(i);
+                    if (p != null && p.getLayoutResource() != 0) {
+                        int lr = p.getLayoutResource();
+                        if ((lr >>> 24) == 0x7f) {
+                            layoutRes = lr;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (layoutRes == 0) {
+                String[] layoutCandidates = new String[] {
+                    "morphe_preference_with_icon",
+                    "revanced_preference_with_icon",
+                    "preference_with_icon"
+                };
+                for (String lName : layoutCandidates) {
+                    try {
+                        int id = activity.getResources().getIdentifier(lName, "layout", activity.getPackageName());
+                        if (id != 0) {
+                            layoutRes = id;
+                            break;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            }
+            if (layoutRes != 0) {
+                pref.setLayoutResource(layoutRes);
+            }
+
+            Drawable icon = createSettingsIcon(activity);
+            if (icon != null) {
+                pref.setIcon(icon);
+            }
+
+            try {
+                pref.setIconSpaceReserved(true);
+            } catch (Throwable ignored) {}
+
+            final Activity actRef = activity;
+            pref.setOnPreferenceClickListener(p -> {
+                try {
+                    Activity act = (!actRef.isFinishing()) ? actRef : currentActivityRef.get();
+                    if (act != null) {
+                        showToast(act, getString("toast_checking_updates"));
+                        new Thread(() -> performCheck(act, true)).start();
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "Failed to perform manual update check from settings", t);
+                }
+                return true;
+            });
+
+            screen.addPreference(pref);
+            Log.i(TAG, "Successfully injected update preference into root settings screen!");
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "Error injecting preference into screen", t);
+            return false;
+        }
+    }
+
+    private static void bindIconView(Activity activity, View view) {
+        if (activity == null || view == null) return;
+        try {
+            // Принудительно скрываем строку summary, оставляя только заголовок
+            View summaryView = view.findViewById(android.R.id.summary);
+            if (summaryView != null) {
+                summaryView.setVisibility(View.GONE);
+            }
+
+            Drawable icon = createSettingsIcon(activity);
+            if (icon == null) return;
+
+            // 1. Стандартный ID иконки Android (используется в Morphe YouTube и Morphe Music)
+            View iv = view.findViewById(android.R.id.icon);
+
+            // 2. Кастомный ID иконки RVX YouTube (revanced_custom_icon)
+            if (iv == null) {
+                try {
+                    int rvxIconId = activity.getResources().getIdentifier("revanced_custom_icon", "id", activity.getPackageName());
+                    if (rvxIconId != 0) {
+                        iv = view.findViewById(rvxIconId);
+                    }
+                } catch (Throwable ignored) {}
+            }
+
+            // 3. Если ImageView найдена в макете — центрируем иконку без растягивания
+            if (iv instanceof ImageView) {
+                ImageView img = (ImageView) iv;
+                img.setImageDrawable(icon);
+                img.setScaleType(ImageView.ScaleType.CENTER);
+                img.setVisibility(View.VISIBLE);
+                return;
+            }
+
+            // 4. Если в макете нет контейнера для иконки (RVX Music), динамически внедряем слот 48dp
+            if (view instanceof ViewGroup) {
+                ViewGroup vg = (ViewGroup) view;
+                View custom = vg.findViewWithTag("jhc_update_icon");
+                ImageView img;
+                if (custom instanceof ImageView) {
+                    img = (ImageView) custom;
+                } else {
+                    img = new ImageView(activity);
+                    img.setTag("jhc_update_icon");
+                    img.setFocusable(false);
+                    img.setClickable(false);
+
+                    float density = activity.getResources().getDisplayMetrics().density;
+                    int slotSize = Math.round(48f * density);
+                    if (slotSize <= 0) slotSize = 96;
+
+                    // Отступ 16dp и слот 48dp соответствуют сетке остальных пунктов RVX Music (центр 40dp, отступ до текста 16dp)
+                    int marginStart = Math.max(0, Math.round(16f * density) - vg.getPaddingStart());
+                    int marginEnd = Math.round(16f * density);
+
+                    if (vg instanceof LinearLayout) {
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(slotSize, slotSize);
+                        lp.gravity = Gravity.CENTER_VERTICAL;
+                        lp.setMarginStart(marginStart);
+                        lp.setMarginEnd(marginEnd);
+                        lp.leftMargin = marginStart;
+                        lp.rightMargin = marginEnd;
+                        img.setLayoutParams(lp);
+                    } else {
+                        ViewGroup.MarginLayoutParams mlp = new ViewGroup.MarginLayoutParams(slotSize, slotSize);
+                        mlp.setMarginStart(marginStart);
+                        mlp.setMarginEnd(marginEnd);
+                        mlp.leftMargin = marginStart;
+                        mlp.rightMargin = marginEnd;
+                        img.setLayoutParams(mlp);
+                    }
+                    img.setScaleType(ImageView.ScaleType.CENTER);
+                    vg.addView(img, 0);
+                }
+                img.setImageDrawable(icon);
+                img.setVisibility(View.VISIBLE);
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "bindIconView error: " + t.getMessage(), t);
+        }
+    }
+
+    private static void cleanupShortcuts(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1 && context != null) {
+            try {
+                Context appContext = (context.getApplicationContext() != null) ? context.getApplicationContext() : context;
+                ShortcutManager sm = (ShortcutManager) appContext.getSystemService(Context.SHORTCUT_SERVICE);
+                if (sm != null) {
+                    sm.removeDynamicShortcuts(Collections.singletonList("morphe_check_updates"));
+                    sm.removeAllDynamicShortcuts();
+                    Log.d(TAG, "Removed dynamic shortcuts from system");
                 }
             } catch (Throwable t) {
-                Log.e(TAG, "Failed to register shortcut", t);
+                Log.w(TAG, "Failed to remove dynamic shortcuts", t);
             }
+        }
+    }
+
+    private static Drawable createSettingsIcon(Context context) {
+        try {
+            float density = context.getResources().getDisplayMetrics().density;
+            int size = Math.round(24f * density);
+            if (size <= 0) size = 48;
+
+            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+
+            int color = Color.WHITE;
+            try {
+                TypedValue tv = new TypedValue();
+                if (context.getTheme().resolveAttribute(android.R.attr.textColorPrimary, tv, true)) {
+                    if (tv.type >= TypedValue.TYPE_FIRST_COLOR_INT && tv.type <= TypedValue.TYPE_LAST_COLOR_INT) {
+                        color = tv.data;
+                    } else if (tv.resourceId != 0) {
+                        try {
+                            if (Build.VERSION.SDK_INT >= 23) {
+                                color = context.getColor(tv.resourceId);
+                            } else {
+                                color = context.getResources().getColor(tv.resourceId);
+                            }
+                        } catch (Throwable ignored) {
+                            if (tv.data != 0) color = tv.data;
+                        }
+                    } else if (tv.data != 0) {
+                        color = tv.data;
+                    }
+                }
+            } catch (Throwable ignored) {}
+
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(color);
+
+            Path path = null;
+            // 1. Попытка создать точный Material Design 'refresh' вектор через PathParser
+            try {
+                Class<?> ppClass = Class.forName("androidx.core.graphics.PathParser");
+                Method m = ppClass.getMethod("createPathFromPathData", String.class);
+                path = (Path) m.invoke(null, "M17.65,6.35C16.2,4.9 14.21,4 12,4c-4.42,0 -7.99,3.58 -7.99,8s3.57,8 7.99,8c3.73,0 6.84,-2.55 7.73,-6h-2.08c-.82,2.33 -3.04,4 -5.65,4-3.31,0 -6,-2.69 -6,-6s2.69,-6 6,-6c1.66,0 3.14,0.69 4.22,1.78L13,11h7V4l-2.35,2.35z");
+            } catch (Throwable t) {
+                try {
+                    Class<?> ppClass2 = Class.forName("android.util.PathParser");
+                    Method m2 = ppClass2.getMethod("createPathFromPathData", String.class);
+                    path = (Path) m2.invoke(null, "M17.65,6.35C16.2,4.9 14.21,4 12,4c-4.42,0 -7.99,3.58 -7.99,8s3.57,8 7.99,8c3.73,0 6.84,-2.55 7.73,-6h-2.08c-.82,2.33 -3.04,4 -5.65,4-3.31,0 -6,-2.69 -6,-6s2.69,-6 6,-6c1.66,0 3.14,0.69 4.22,1.78L13,11h7V4l-2.35,2.35z");
+                } catch (Throwable ignored) {}
+            }
+
+            if (path != null) {
+                paint.setStyle(Paint.Style.FILL);
+                Matrix matrix = new Matrix();
+                float scale = (float) size / 24f;
+                matrix.setScale(scale, scale);
+                path.transform(matrix);
+                canvas.drawPath(path, paint);
+            } else {
+                // 2. Резервная прямая отрисовка круговой стрелки обновления через Canvas
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(2.3f * density);
+                paint.setStrokeCap(Paint.Cap.ROUND);
+
+                float center = size / 2f;
+                float r = 7.5f * density;
+                RectF arcBounds = new RectF(center - r, center - r, center + r, center + r);
+                canvas.drawArc(arcBounds, 45, 275, false, paint);
+
+                Paint arrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                arrowPaint.setColor(color);
+                arrowPaint.setStyle(Paint.Style.FILL);
+
+                float arrowSize = 3.2f * density;
+                float tipX = center + (float) (r * Math.cos(Math.toRadians(45)));
+                float tipY = center + (float) (r * Math.sin(Math.toRadians(45)));
+                Path arrow = new Path();
+                arrow.moveTo(tipX + arrowSize * 0.2f, tipY - arrowSize * 1.3f);
+                arrow.lineTo(tipX + arrowSize * 1.5f, tipY + arrowSize * 0.5f);
+                arrow.lineTo(tipX - arrowSize * 1.1f, tipY + arrowSize * 0.5f);
+                arrow.close();
+                canvas.drawPath(arrow, arrowPaint);
+            }
+
+            return new BitmapDrawable(context.getResources(), bitmap);
+        } catch (Throwable t) {
+            Log.w(TAG, "Failed to create settings icon", t);
+            return null;
         }
     }
 
@@ -321,16 +714,15 @@ public class JhcUpdateCheckPatch {
                         if (matchedUrl == null) continue;
 
                         String body = rel.optString("body", "");
-                        String patchVer = extractPatchVersion(body);
+                        PatchInfo pInfo = extractPatchInfo(context, body);
 
                         targetTag = tag;
                         downloadUrl = matchedUrl;
                         appVersion = extractVersionFromUrl(matchedUrl);
-                        patchVersion = patchVer;
+                        patchVersion = pInfo.version;
 
-                        String extractedChangelog = extractChangelogUrl(body, patchVer);
-                        if (extractedChangelog != null && !extractedChangelog.isEmpty()) {
-                            changelogUrl = extractedChangelog;
+                        if (pInfo.changelogUrl != null && !pInfo.changelogUrl.isEmpty()) {
+                            changelogUrl = pInfo.changelogUrl;
                         } else {
                             changelogUrl = rel.optString("html_url", "https://github.com/" + REPO_OWNER_NAME + "/releases/tag/" + tag);
                         }
@@ -375,10 +767,8 @@ public class JhcUpdateCheckPatch {
                         } else {
                             appVersion = "21.13.164";
                         }
-                        Matcher patchMatcher = Pattern.compile("patches-([0-9a-zA-Z._-]+)\\.mpp").matcher(atom);
-                        if (patchMatcher.find()) {
-                            patchVersion = patchMatcher.group(1);
-                        }
+                        PatchInfo atomPatchInfo = extractPatchInfo(context, atom);
+                        patchVersion = atomPatchInfo.version;
                         if (targetTag != null) {
                             // Try expanded_assets for direct APK link
                             try {
@@ -416,9 +806,8 @@ public class JhcUpdateCheckPatch {
                                 downloadUrl = "https://github.com/" + REPO_OWNER_NAME + "/releases/download/" + targetTag + "/" + appPrefix + ext;
                             }
 
-                            Matcher chMatcher = Pattern.compile("href=\"(https://github\\.com/[^\"]*patches/releases/tag/[^\"]+)\"").matcher(atom);
-                            if (chMatcher.find()) {
-                                changelogUrl = chMatcher.group(1);
+                            if (atomPatchInfo.changelogUrl != null && !atomPatchInfo.changelogUrl.isEmpty()) {
+                                changelogUrl = atomPatchInfo.changelogUrl;
                             } else {
                                 changelogUrl = "https://github.com/" + REPO_OWNER_NAME + "/releases/tag/" + targetTag;
                             }
@@ -443,7 +832,7 @@ public class JhcUpdateCheckPatch {
                 return;
             }
 
-            // If not in forced test mode and not a manual check, check snooze and skip
+            boolean isLatest = false;
             if (!FORCE_TEST_ALWAYS_SHOW && !manualCheck) {
                 long snoozeUntil = prefs.getLong(KEY_SNOOZE_UNTIL, 0L);
                 long now = System.currentTimeMillis();
@@ -468,11 +857,7 @@ public class JhcUpdateCheckPatch {
             } else if (manualCheck && EMBEDDED_BUILD_CODE > 0 && !FORCE_TEST_ALWAYS_SHOW) {
                 int remoteBuildCode = parseNumericTag(targetTag);
                 if (remoteBuildCode > 0 && remoteBuildCode <= EMBEDDED_BUILD_CODE) {
-                    if (context instanceof Activity) {
-                        ((Activity) context).runOnUiThread(() -> 
-                            showToast(context, getString("toast_already_latest")));
-                    }
-                    return;
+                    isLatest = true;
                 }
             }
 
@@ -481,49 +866,91 @@ public class JhcUpdateCheckPatch {
             final String finalVer = appVersion;
             final String finalPatchVer = patchVersion;
             final String finalChangelog = changelogUrl;
+            final boolean finalIsLatest = isLatest;
 
             if (context instanceof Activity) {
                 ((Activity) context).runOnUiThread(() -> 
-                    showDialog((Activity) context, finalTag, finalVer, finalPatchVer, finalUrl, finalChangelog));
+                    showDialog((Activity) context, finalTag, finalVer, finalPatchVer, finalUrl, finalChangelog, finalIsLatest));
             }
         } catch (Throwable t) {
             Log.e(TAG, "Error checking updates", t);
         }
     }
 
-    private static String extractChangelogUrl(String body, String patchVersion) {
-        if (body == null) body = "";
+    private static class PatchInfo {
+        final String version;
+        final String changelogUrl;
 
-        // 1. If MorpheApp/morphe-patches changelog link exists in the release body, prefer it
-        try {
-            Pattern pMorphe = Pattern.compile("https://github\\.com/MorpheApp/morphe-patches/releases/tag/[^\\s)\"]+");
-            Matcher mMorphe = pMorphe.matcher(body);
-            if (mMorphe.find()) {
-                return mMorphe.group(0);
-            }
-        } catch (Exception ignored) {}
+        PatchInfo(String version, String changelogUrl) {
+            this.version = (version != null) ? version : "";
+            this.changelogUrl = (changelogUrl != null) ? changelogUrl : "";
+        }
+    }
 
-        // 2. If patches are dual-vot, link directly to Morphe upstream changelog
-        String verToCheck = (patchVersion != null && !patchVersion.isEmpty()) ? patchVersion : body;
-        if (verToCheck.toLowerCase(Locale.ROOT).contains("dualvot") || body.contains("dual-vot-patches")) {
-            String baseVer = patchVersion != null ? patchVersion : "";
-            baseVer = baseVer.replaceAll("-dualvot\\.[0-9a-zA-Z._-]+", "")
-                             .replaceAll("^[vV]", "");
-            if (!baseVer.isEmpty()) {
-                return "https://github.com/MorpheApp/morphe-patches/releases/tag/v" + baseVer;
-            }
+    private static PatchInfo extractPatchInfo(Context context, String body) {
+        if (body == null || body.isEmpty()) {
+            return new PatchInfo("", "");
         }
 
-        // 3. Fallback to any patch changelog link in body
-        try {
-            Pattern pAny = Pattern.compile("https://github\\.com/[^\\s)\"]+/releases/tag/[^\\s)\"]+");
-            Matcher mAny = pAny.matcher(body);
-            if (mAny.find()) {
-                return mAny.group(0);
-            }
-        } catch (Exception ignored) {}
+        String pkg = (context != null) ? context.getPackageName().toLowerCase(Locale.ROOT) : "";
+        boolean isMusic = pkg.contains("music");
+        boolean isAnddea = pkg.contains("anddea") || pkg.contains("rvx");
 
-        return null;
+        String[] targetRepos;
+        if (isAnddea) {
+            targetRepos = new String[] { "anddea/revanced-patches" };
+        } else if (isMusic) {
+            targetRepos = new String[] { "MorpheApp/morphe-patches", "sashade8-ship-it/dual-vot-patches" };
+        } else {
+            targetRepos = new String[] { "sashade8-ship-it/dual-vot-patches", "MorpheApp/morphe-patches" };
+        }
+
+        for (String repo : targetRepos) {
+            try {
+                Pattern pVer = Pattern.compile(Pattern.quote(repo) + "/patches-(?:v)?([0-9a-zA-Z._-]+)\\.mpp");
+                Matcher mVer = pVer.matcher(body);
+                if (mVer.find()) {
+                    String ver = mVer.group(1);
+                    String changelog = "";
+
+                    // Если используются патчи dual-vot, чейнджлог ведёт на официальный upstream MorpheApp/morphe-patches
+                    String chRepo = repo;
+                    if (repo.contains("dual-vot") || ver.toLowerCase(Locale.ROOT).contains("dualvot")) {
+                        chRepo = "MorpheApp/morphe-patches";
+                    }
+
+                    Pattern pCh = Pattern.compile("https://github\\.com/" + Pattern.quote(chRepo) + "/releases/tag/[^\\s)\"<>]+");
+                    Matcher mCh = pCh.matcher(body);
+                    if (mCh.find()) {
+                        changelog = mCh.group(0);
+                    } else if (ver.toLowerCase(Locale.ROOT).contains("dualvot")) {
+                        String baseVer = ver.replaceAll("-dualvot\\.[0-9a-zA-Z._-]+", "").replaceAll("^[vV]", "");
+                        changelog = "https://github.com/MorpheApp/morphe-patches/releases/tag/v" + baseVer;
+                    } else {
+                        changelog = "https://github.com/" + chRepo + "/releases";
+                    }
+                    return new PatchInfo(ver, changelog);
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        // Резервный поиск любых патчей и чейнджлога в описании
+        String fallbackVer = "";
+        String fallbackChangelog = "";
+        try {
+            Pattern pAnyVer = Pattern.compile("patches-(?:v)?([0-9a-zA-Z._-]+)\\.mpp");
+            Matcher mAnyVer = pAnyVer.matcher(body);
+            if (mAnyVer.find()) {
+                fallbackVer = mAnyVer.group(1);
+            }
+            Pattern pAnyCh = Pattern.compile("https://github\\.com/[^\\s)\"<>]+/releases/tag/[^\\s)\"<>]+");
+            Matcher mAnyCh = pAnyCh.matcher(body);
+            if (mAnyCh.find()) {
+                fallbackChangelog = mAnyCh.group(0);
+            }
+        } catch (Throwable ignored) {}
+
+        return new PatchInfo(fallbackVer, fallbackChangelog);
     }
 
     private static String findMatchingUrl(Context context, java.util.List<String> urls) {
@@ -602,23 +1029,6 @@ public class JhcUpdateCheckPatch {
                 if (endIdx != -1) {
                     return url.substring(vIdx + 2, endIdx);
                 }
-            }
-        } catch (Exception ignored) {}
-        return "";
-    }
-
-    private static String extractPatchVersion(String body) {
-        if (body == null || body.isEmpty()) return "";
-        try {
-            Pattern p = Pattern.compile("patches-(?:v)?([0-9a-zA-Z._-]+)\\.mpp");
-            Matcher m = p.matcher(body);
-            if (m.find()) {
-                return m.group(1);
-            }
-            Pattern p2 = Pattern.compile("Patches:[^\\n]*?([0-9]+\\.[0-9]+[0-9a-zA-Z._-]*)");
-            Matcher m2 = p2.matcher(body);
-            if (m2.find()) {
-                return m2.group(1);
             }
         } catch (Exception ignored) {}
         return "";
@@ -710,7 +1120,7 @@ public class JhcUpdateCheckPatch {
     }
 
     // --- UI DIALOG (Style 1: Material 3 / Telegram Layout with Changelog & Return Labels) ---
-    private static void showDialog(Activity activity, String tag, String version, String patchVersion, String downloadUrl, String changelogUrl) {
+    private static void showDialog(Activity activity, String tag, String version, String patchVersion, String downloadUrl, String changelogUrl, boolean isLatest) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
@@ -872,15 +1282,20 @@ public class JhcUpdateCheckPatch {
             identityRow.setLayoutParams(idRowLp);
 
             TextView iconBox = new TextView(activity);
-            iconBox.setText(emoji(0x1F680));
+            if (isLatest) {
+                iconBox.setText("✅");
+            } else {
+                iconBox.setText(emoji(0x1F680));
+            }
             iconBox.setTextSize(22);
             iconBox.setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(44, density), dp(44, density));
             iconLp.rightMargin = dp(12, density);
             iconBox.setLayoutParams(iconLp);
 
+            final int colGreenIconBg = dark ? Color.parseColor("#152B1E") : Color.parseColor("#E6F4EA");
             GradientDrawable iconBg = new GradientDrawable();
-            iconBg.setColor(colIconBg);
+            iconBg.setColor(isLatest ? colGreenIconBg : colIconBg);
             iconBg.setCornerRadius(dp(14, density));
             iconBox.setBackground(iconBg);
             identityRow.addView(iconBox);
@@ -889,7 +1304,7 @@ public class JhcUpdateCheckPatch {
             textBlock.setOrientation(LinearLayout.VERTICAL);
 
             TextView titleView = new TextView(activity);
-            titleView.setText(getString("title"));
+            titleView.setText(isLatest ? getString("title_latest") : getString("title"));
             titleView.setTextColor(colTitle);
             titleView.setTypeface(Typeface.DEFAULT_BOLD);
             titleView.setTextSize(18);
@@ -897,7 +1312,7 @@ public class JhcUpdateCheckPatch {
 
             TextView subView = new TextView(activity);
             String verText = version.isEmpty() ? "v" + tag : "v" + version;
-            subView.setText("YouTube Morphe • " + verText);
+            subView.setText(getAppDisplayName(activity) + " • " + verText);
             subView.setTextColor(colSubtitle);
             subView.setTextSize(12);
             textBlock.addView(subView);
@@ -1149,7 +1564,7 @@ public class JhcUpdateCheckPatch {
 
             // 6. Dismiss / Skip Button
             TextView skipBtn = new TextView(activity);
-            skipBtn.setText(getString("skip_btn"));
+            skipBtn.setText(isLatest ? getString("btn_close") : getString("skip_btn"));
             skipBtn.setTextColor(colSubtitle);
             skipBtn.setTextSize(12);
             skipBtn.setGravity(Gravity.CENTER);
@@ -1158,15 +1573,19 @@ public class JhcUpdateCheckPatch {
             skipBtn.setLayoutParams(skipLp);
             skipBtn.setPadding(0, dp(4, density), 0, dp(4, density));
             skipBtn.setOnClickListener(v -> {
-                prefs.edit().putString(KEY_SKIPPED_TAG, tag).apply();
-                dialog.dismiss();
-                showToast(activity, String.format(getString("toast_skipped"), tag));
+                if (isLatest) {
+                    dialog.dismiss();
+                } else {
+                    prefs.edit().putString(KEY_SKIPPED_TAG, tag).apply();
+                    dialog.dismiss();
+                    showToast(activity, String.format(getString("toast_skipped"), tag));
+                }
             });
             rightCol.addView(skipBtn);
 
             // 7. Shortcut Hint Badge
             TextView hintView = new TextView(activity);
-            hintView.setText(getString("hint_shortcut"));
+            hintView.setText(String.format(getString("hint_shortcut_fmt"), getSettingsBrandName(activity)));
             hintView.setTextColor(dark ? Color.parseColor("#C8C8D0") : Color.parseColor("#2E2E36"));
             hintView.setTextSize(11f);
             hintView.setGravity(Gravity.CENTER);
@@ -1442,6 +1861,7 @@ public class JhcUpdateCheckPatch {
         if (lang.equals("uk") || lang.equals("ua")) {
             switch (key) {
                 case "title": return "Доступне оновлення";
+                case "title_latest": return "У вас остання версія";
                 case "subtitle_fmt": return "Збірка %s";
                 case "info_patch_label": return "Версія патчів:";
                 case "info_build_label": return "Номер збірки:";
@@ -1456,6 +1876,7 @@ public class JhcUpdateCheckPatch {
                 case "chip_1mo": return "1 міс";
                 case "chip_forever": return "Назавжди";
                 case "btn_reset_snooze": return "↺  Скинути";
+                case "btn_close": return "Закрити";
                 case "status_snoozed_forever": return "🔕  Вимкнено назавжди";
                 case "status_snoozed_days_fmt": return "🔕  Пауза: ще %d дн.";
                 case "status_snoozed_hours_fmt": return "🔕  Пауза: ще %d год.";
@@ -1464,20 +1885,23 @@ public class JhcUpdateCheckPatch {
                 case "toast_snoozed": return "Сповіщення вимкнено на %s";
                 case "toast_snoozed_forever": return "Сповіщення вимкнено назавжди";
                 case "toast_snooze_reset": return "Паузу скинуто. Сповіщення увімкнено";
-                case "hint_shortcut": return "💡 Затисніть іконку на робочому столі для ручної перевірки";
                 case "toast_skipped": return "Збірку %s пропущено";
                 case "toast_install_obtainium": return "Встановіть Obtainium для автооновлень";
+                case "update_settings_title": return "Оновлення патчів";
+                case "update_settings_summary": return "Перевірити наявність нових збірок";
                 case "shortcut_label": return "Оновити патчі";
                 case "shortcut_long_label": return "🔄  Оновити патчі";
                 case "toast_checking_updates": return "Перевірка оновлень патчів...";
                 case "toast_already_latest": return "У вас встановлені найновіші патчі";
                 case "toast_check_failed": return "Не вдалося перевірити оновлення. Перевірте мережу";
+                case "hint_shortcut_fmt": return "💡 Перевірка: Налаштування -> %s -> Оновлення патчів";
             }
         }
         // Russian, Belarusian, Kazakh
         else if (lang.equals("ru") || lang.equals("be") || lang.equals("kk")) {
             switch (key) {
                 case "title": return "Доступно обновление";
+                case "title_latest": return "У вас последняя версия";
                 case "subtitle_fmt": return "Сборка %s";
                 case "info_patch_label": return "Версия патчей:";
                 case "info_build_label": return "Номер сборки:";
@@ -1492,6 +1916,7 @@ public class JhcUpdateCheckPatch {
                 case "chip_1mo": return "1 мес";
                 case "chip_forever": return "Навсегда";
                 case "btn_reset_snooze": return "↺  Сбросить";
+                case "btn_close": return "Закрыть";
                 case "status_snoozed_forever": return "🔕  Отключено навсегда";
                 case "status_snoozed_days_fmt": return "🔕  Пауза: ещё %d дн.";
                 case "status_snoozed_hours_fmt": return "🔕  Пауза: ещё %d ч.";
@@ -1500,20 +1925,23 @@ public class JhcUpdateCheckPatch {
                 case "toast_snoozed": return "Уведомления отключены на %s";
                 case "toast_snoozed_forever": return "Уведомления отключены навсегда";
                 case "toast_snooze_reset": return "Пауза сброшена. Уведомления включены";
-                case "hint_shortcut": return "💡 Зажмите иконку на рабочем столе для ручной проверки";
                 case "toast_skipped": return "Билд %s пропущен";
                 case "toast_install_obtainium": return "Установите Obtainium для автообновлений";
+                case "update_settings_title": return "Обновление патчей";
+                case "update_settings_summary": return "Проверить наличие новой версии сборок";
                 case "shortcut_label": return "Обновить патчи";
                 case "shortcut_long_label": return "🔄  Обновить патчи";
                 case "toast_checking_updates": return "Проверка обновлений патчей...";
                 case "toast_already_latest": return "У вас установлены актуальные патчи";
                 case "toast_check_failed": return "Не удалось проверить обновления. Проверьте сеть";
+                case "hint_shortcut_fmt": return "💡 Проверка: Настройки -> %s -> Обновление патчей";
             }
         } 
         // Spanish
         else if (lang.equals("es")) {
             switch (key) {
                 case "title": return "Actualización disponible";
+                case "title_latest": return "Tienes la última versión";
                 case "subtitle_fmt": return "Versión %s";
                 case "info_patch_label": return "Versión de parches:";
                 case "info_build_label": return "Número de build:";
@@ -1528,6 +1956,7 @@ public class JhcUpdateCheckPatch {
                 case "chip_1mo": return "1 mes";
                 case "chip_forever": return "Siempre";
                 case "btn_reset_snooze": return "↺  Restablecer";
+                case "btn_close": return "Cerrar";
                 case "status_snoozed_forever": return "🔕  Desactivado permanentemente";
                 case "status_snoozed_days_fmt": return "🔕  Pausa: quedan %d d";
                 case "status_snoozed_hours_fmt": return "🔕  Pausa: quedan %d h";
@@ -1536,20 +1965,23 @@ public class JhcUpdateCheckPatch {
                 case "toast_snoozed": return "Notificaciones pausadas por %s";
                 case "toast_snoozed_forever": return "Notificaciones desactivadas permanentemente";
                 case "toast_snooze_reset": return "Pausa restablecida. Notificaciones activadas";
-                case "hint_shortcut": return "💡 Mantén pulsado el icono para buscar actualizaciones";
                 case "toast_skipped": return "Versión %s omitida";
                 case "toast_install_obtainium": return "Instala Obtainium para actualizaciones";
+                case "update_settings_title": return "Actualización de parches";
+                case "update_settings_summary": return "Buscar nuevas compilaciones";
                 case "shortcut_label": return "Actualizar parches";
                 case "shortcut_long_label": return "🔄  Actualizar parches";
                 case "toast_checking_updates": return "Buscando actualizaciones de parches...";
                 case "toast_already_latest": return "Tienes instalados los parches más recientes";
                 case "toast_check_failed": return "Error al buscar actualizaciones. Comprueba la red";
+                case "hint_shortcut_fmt": return "💡 Comprobar: Ajustes -> %s -> Actualización de parches";
             }
         } 
         // German
         else if (lang.equals("de")) {
             switch (key) {
                 case "title": return "Update verfügbar";
+                case "title_latest": return "Sie haben die neueste Version";
                 case "subtitle_fmt": return "Build %s";
                 case "info_patch_label": return "Patch-Version:";
                 case "info_build_label": return "Build-Nummer:";
@@ -1564,6 +1996,7 @@ public class JhcUpdateCheckPatch {
                 case "chip_1mo": return "1 Monat";
                 case "chip_forever": return "Immer";
                 case "btn_reset_snooze": return "↺  Zurücksetzen";
+                case "btn_close": return "Schließen";
                 case "status_snoozed_forever": return "🔕  Dauerhaft deaktiviert";
                 case "status_snoozed_days_fmt": return "🔕  Pausiert: noch %d T";
                 case "status_snoozed_hours_fmt": return "🔕  Pausiert: noch %d Std";
@@ -1572,20 +2005,23 @@ public class JhcUpdateCheckPatch {
                 case "toast_snoozed": return "Benachrichtigungen pausiert für %s";
                 case "toast_snoozed_forever": return "Benachrichtigungen dauerhaft deaktiviert";
                 case "toast_snooze_reset": return "Pause zurückgesetzt. Benachrichtigungen aktiviert";
-                case "hint_shortcut": return "💡 Halte das App-Symbol gedrückt für manuelle Suche";
                 case "toast_skipped": return "Build %s übersprungen";
                 case "toast_install_obtainium": return "Installiere Obtainium für Updates";
+                case "update_settings_title": return "Patch-Updates";
+                case "update_settings_summary": return "Nach neuen Builds suchen";
                 case "shortcut_label": return "Patches aktualisieren";
                 case "shortcut_long_label": return "🔄  Patches aktualisieren";
                 case "toast_checking_updates": return "Suche nach Patch-Updates...";
                 case "toast_already_latest": return "Sie haben die neuesten Patches installiert";
                 case "toast_check_failed": return "Fehler bei der Update-Suche. Netzwerk prüfen";
+                case "hint_shortcut_fmt": return "💡 Prüfung: Einstellungen -> %s -> Patch-Updates";
             }
         }
 
         // English default
         switch (key) {
             case "title": return "Update Available";
+            case "title_latest": return "You have the latest version";
             case "subtitle_fmt": return "Build %s";
             case "info_patch_label": return "Patches version:";
             case "info_build_label": return "Build number:";
@@ -1600,6 +2036,7 @@ public class JhcUpdateCheckPatch {
             case "chip_1mo": return "1 mo";
             case "chip_forever": return "Forever";
             case "btn_reset_snooze": return "↺  Reset";
+            case "btn_close": return "Close";
             case "status_snoozed_forever": return "🔕  Disabled permanently";
             case "status_snoozed_days_fmt": return "🔕  Paused: %d d left";
             case "status_snoozed_hours_fmt": return "🔕  Paused: %d h left";
@@ -1610,12 +2047,14 @@ public class JhcUpdateCheckPatch {
             case "toast_snooze_reset": return "Pause reset. Notifications enabled";
             case "toast_skipped": return "Build %s skipped";
             case "toast_install_obtainium": return "Install Obtainium for auto-updates";
+            case "update_settings_title": return "Patch updates";
+            case "update_settings_summary": return "Check for new builds";
             case "shortcut_label": return "Update Patches";
             case "shortcut_long_label": return "🔄  Update Patches";
             case "toast_checking_updates": return "Checking for patch updates...";
             case "toast_already_latest": return "You have the latest patches installed";
             case "toast_check_failed": return "Failed to check for updates. Check your network";
-            case "hint_shortcut": return "💡 Long press the home screen icon to check manually";
+            case "hint_shortcut_fmt": return "💡 Check: Settings -> %s -> Patch updates";
             default: return key;
         }
      }
