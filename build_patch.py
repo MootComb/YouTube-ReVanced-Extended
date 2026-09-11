@@ -28,6 +28,7 @@ java_bin = shutil.which('java') or r'C:\Program Files\JDownloader\jre\bin\java.e
 
 android_jar = None
 jar_candidates = [
+    os.path.join(repo_dir, 'libs', 'android.jar'),
     r'C:\Users\Alex\.gemini\antigravity\scratch\android.jar',
     os.path.join(os.environ.get('ANDROID_SDK_ROOT', ''), 'platforms', 'android-*', 'android.jar'),
     os.path.join(os.environ.get('ANDROID_HOME', ''), 'platforms', 'android-*', 'android.jar'),
@@ -56,7 +57,9 @@ if not d8_bin:
             d8_bin = matches[-1]
             break
 
-r8_jar = r'C:\Users\Alex\.gemini\antigravity\scratch\r8.jar'
+r8_jar = os.path.join(repo_dir, 'libs', 'r8.jar')
+if not os.path.exists(r8_jar):
+    r8_jar = r'C:\Users\Alex\.gemini\antigravity\scratch\r8.jar'
 
 assert javac_bin and os.path.exists(javac_bin), f'javac not found: {javac_bin}'
 assert android_jar and os.path.exists(android_jar), f'android.jar not found: {android_jar}'
