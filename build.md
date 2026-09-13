@@ -1,8 +1,8 @@
 YouTube: 21.07.247  
 
-Install instructions: [NonRoot + Obtainium](https://github.com/MANCrimSon/YouTube-ReVanced-Extended#nonroot--installation-and-auto-updates-via-obtainium) · [Root](https://github.com/MANCrimSon/YouTube-ReVanced-Extended#root--installation)
+Install instructions: [NonRoot](https://github.com/MootComb/YouTube-ReVanced-Extended#nonroot-apk) · [Root](https://github.com/MootComb/YouTube-ReVanced-Extended#root-magisk--kernelsu)
   
-CLI: MorpheApp/morphe-desktop/morphe-desktop-1.15.1-all.jar  
+CLI: MorpheApp/morphe-desktop/morphe-desktop-1.15.2-dev.2-all.jar  
   
-Patches: anddea/revanced-patches/patches-4.3.0-dev.5.mpp  
-[Changelog](https://github.com/anddea/revanced-patches/releases/tag/v4.3.0-dev.5)  
+Patches: anddea/revanced-patches/patches-4.3.0-dev.6.mpp  
+[Changelog](https://github.com/anddea/revanced-patches/releases/tag/v4.3.0-dev.6)  
