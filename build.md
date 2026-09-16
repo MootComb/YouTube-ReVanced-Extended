@@ -1,6 +1,6 @@
 YouTube: 21.07.247  
 
-Install instructions: [NonRoot](https://github.com/MootComb/YouTube-ReVanced-Extended#nonroot-apk) · [Root](https://github.com/MootComb/YouTube-ReVanced-Extended#root-magisk--kernelsu)
+Install instructions: [NonRoot](https://github.com/MootComb/YouTube-ReVanced-Extended#nonroot) · [Root](https://github.com/MootComb/YouTube-ReVanced-Extended#root)
   
 CLI: MorpheApp/morphe-desktop/morphe-desktop-1.16.0-all.jar  
   
