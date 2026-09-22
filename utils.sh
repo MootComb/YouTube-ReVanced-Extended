@@ -200,6 +200,7 @@ get_prebuilts() {
 					rm -r "${file}-zip" 2>/dev/null || :
 				fi
 			fi
+
 		fi
 		echo -n "$file "
 	done
