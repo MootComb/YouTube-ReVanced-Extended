@@ -4,5 +4,5 @@ Install instructions: [NonRoot](https://github.com/MootComb/YouTube-ReVanced-Ext
   
 CLI: MorpheApp/morphe-desktop/morphe-desktop-1.18.2-dev.4-all.jar  
   
-Patches: anddea/revanced-patches/patches-4.3.1-dev.1.mpp  
-[Changelog](https://github.com/anddea/revanced-patches/releases/tag/v4.3.1-dev.1)  
+Patches: anddea/revanced-patches/patches-4.4.0-dev.1.mpp  
+[Changelog](https://github.com/anddea/revanced-patches/releases/tag/v4.4.0-dev.1)  
