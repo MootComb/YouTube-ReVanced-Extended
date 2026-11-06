@@ -1,4 +1,4 @@
-YouTube: 20.51.39  
+YouTube: 21.13.164  
 
 Install instructions: [NonRoot](https://github.com/MootComb/YouTube-ReVanced-Extended#nonroot) · [Root](https://github.com/MootComb/YouTube-ReVanced-Extended#root)
   
