@@ -9,6 +9,7 @@ enabled = true
 app-name = "YouTube"
 rv-brand = "ReVanced"
 build-mode = "module"
+version = "20.51.39"
 patches-source = "anddea/revanced-patches"
 patches-version = "dev"
 # apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
